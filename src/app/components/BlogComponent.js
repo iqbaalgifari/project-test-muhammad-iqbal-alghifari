@@ -1,22 +1,39 @@
 "use client"
 
 import Image from 'next/image'
+import Link from 'next/link'
 import React, { useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { ApiRepository } from '../repository/ApiRepository'
 import dayjs from 'dayjs'
 
 const apiSuitmedia = new ApiRepository()
 
 export default function BlogComponent() {
-  const [pageNumber, setPageNumber] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
-  const [sort, setSort] = useState("published_at")
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
+  // Ambil dari query params, atau pakai default
+  const [pageNumber, setPageNumber] = useState(Number(searchParams.get('page')) || 1)
+  const [pageSize, setPageSize] = useState(Number(searchParams.get('size')) || 10)
+  const [sort, setSort] = useState(searchParams.get('sort') || 'published_at')
   const [blog, setBlog] = useState([])
   const [loading, setLoading] = useState(false)
   const [totalData, setTotalData] = useState(0)
 
   const totalPages = Math.ceil(totalData / pageSize)
 
+  // Update URL saat state berubah
+  useEffect(() => {
+    const params = new URLSearchParams()
+    params.set('page', pageNumber.toString())
+    params.set('size', pageSize.toString())
+    params.set('sort', sort)
+
+    router.replace(`?${params.toString()}`, {scroll: false})
+  }, [pageNumber, pageSize, sort])
+
+  // Ambil data dari API
   useEffect(() => {
     getAllBlog()
   }, [pageSize, pageNumber, sort])
@@ -26,7 +43,7 @@ export default function BlogComponent() {
     try {
       const response = await apiSuitmedia.GetAllBlog(pageNumber, pageSize, sort)
       setBlog(response.data)
-      setTotalData(response.meta?.total || 0) // backend harus support total
+      setTotalData(response.meta?.total || 0)
     } catch (error) {
       console.error("Error :", error)
     } finally {
@@ -34,6 +51,7 @@ export default function BlogComponent() {
     }
   }
 
+  // Pagination component
   const Pagination = ({ currentPage, totalPages, onPageChange }) => {
     const generatePages = () => {
       const pages = []
@@ -54,7 +72,6 @@ export default function BlogComponent() {
 
     return (
       <div className="flex items-center gap-2 mt-6 flex-wrap">
-        {/* Prev */}
         <button
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
@@ -63,7 +80,6 @@ export default function BlogComponent() {
           &lsaquo;
         </button>
 
-        {/* Page Numbers */}
         {generatePages().map((page) => (
           <button
             key={page}
@@ -78,7 +94,6 @@ export default function BlogComponent() {
           </button>
         ))}
 
-        {/* Next */}
         <button
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
@@ -102,10 +117,12 @@ export default function BlogComponent() {
 
           <div className="flex flex-wrap gap-4">
             <div className="flex items-center gap-x-2">
-              <label className="text-sm">Per page:</label>
+              <label className="text-sm">Shows per page:</label>
               <select
                 value={pageSize}
-                onChange={(e) => { setPageSize(Number(e.target.value)); setPageNumber(1); }}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value))
+                }}
                 className="border px-3 py-1 rounded-md text-sm"
               >
                 <option value="10">10</option>
